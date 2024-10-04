@@ -41,4 +41,14 @@ router.post("/", async (req: Request, res: Response) => {
   }
 });
 
+router.get('/latest', async (req, res) => {
+  try {
+    const orders = await Order.find().sort({ createdAt: -1 }).limit(6);
+    res.json({ orders });
+  } catch (error) {
+    console.error('Error fetching latest orders:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;
