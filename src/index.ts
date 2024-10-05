@@ -7,14 +7,14 @@ import { fetchAndSaveExchangeRates } from './services/exchangeRateService';
 import cron from 'node-cron';
 import cors from 'cors';
 
-dotenv.config();
+dotenv.config({ override: false });
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const port = process.env.PORT || 5000;
 
 // Подключение к базе данных
 connectDB();
-
+console.log('MONGODB_URI:', process.env.MONGODB_URI);
 // Middleware
 app.use(express.json());
 app.use(cors());
@@ -33,6 +33,6 @@ cron.schedule('*/2 * * * *', () => {
 fetchAndSaveExchangeRates();
 
 // Запуск сервера
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
