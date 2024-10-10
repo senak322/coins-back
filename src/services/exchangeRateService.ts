@@ -3,35 +3,41 @@ import ExchangeRate, { IExchangeRate } from "../models/ExchangeRate";
 
 const API_KEY = process.env.API_KEY;
 
-const symbolMap: { [key: string]: string } = {
-  Sber: "RUB",
-  "T-Bank": "RUB",
+// const symbolMap: { [key: string]: string } = {
+//   Sber: "RUB",
+//   "T-Bank": "RUB",
   
-  // другие соответствия, если необходимо
-};
+//   // другие соответствия, если необходимо
+// };
 
-const currencies = ['BTC', 'ETH', 'USDT', 'LTC', 'TON', 'RUB']; // Список валют, которые хотиm получить
+const currencies = ['BTC', 'ETH', 'USDT', 'LTC', 'TON', 'XMR', 'TRX', 'DOGE', 'USDC', 'SOL', 'DAI', 'ADA', 'RUB']; // Список валют, которые хотиm получить
 
 export const fetchAndSaveExchangeRates = async () => {
   try {
+    const response = await axios.get(
+      "https://min-api.cryptocompare.com/data/pricemulti",
+      {
+        params: {
+          fsyms: currencies.join(","),
+          tsyms: "RUB",
+        },
+        headers: {
+          authorization: `Apikey ${API_KEY}`,
+        },
+      }
+    );
+
+    const rawRates = response.data;
     const rates: { [key: string]: number } = {};
 
-    for (const currency of currencies) {
-      const symbol = symbolMap[currency] || currency;
-      const response = await axios.get(
-        "https://min-api.cryptocompare.com/data/price",
-        {
-          params: {
-            fsym: symbol,
-            tsyms: currencies.join(","),
-          },
-          headers: {
-            authorization: `Apikey ${API_KEY}`,
-          },
+    // Преобразуем данные в формат, ожидаемый Mongoose
+    for (const [currency, rateData] of Object.entries(rawRates)) {
+      if (typeof rateData === 'object' && rateData !== null && 'RUB' in rateData) {
+        const rubRate = rateData['RUB'];
+        if (typeof rubRate === 'number') {
+          rates[currency] = rubRate;
         }
-      );
-
-      rates[symbol] = response.data.RUB; // Предполагается, что вы получаете курс к RUB
+      }
     }
 
     const exchangeRate = new ExchangeRate({ rates });
