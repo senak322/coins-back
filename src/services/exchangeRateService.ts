@@ -62,7 +62,7 @@ export const fetchAndSaveExchangeRates = async () => {
     const updatedExchangeRate = await ExchangeRate.findOneAndUpdate(
       {}, // Условие поиска: пустой объект, чтобы выбрать первый документ в коллекции
       { rates, timestamp: new Date() }, // Новые данные для обновления
-      { upsert: true, new: true } // Опции: создать, если нет (upsert), вернуть новый документ (new)
+      { upsert: true, new: true, setDefaultsOnInsert: true } // Опции: создать, если нет (upsert), вернуть новый документ (new)
     );
 
     console.log("Exchange rates updated:", updatedExchangeRate);
