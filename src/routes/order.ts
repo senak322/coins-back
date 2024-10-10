@@ -6,7 +6,7 @@ import { sendEmail } from "../services/emailService";
 const router = Router();
 
 router.post("/", async (req: Request, res: Response) => {
-  const { amountGive, currencyGive, amountReceive, currencyReceive, telegramNickname  } = req.body;
+  const { amountGive, currencyGive, amountReceive, currencyReceive, telegramNickname, networkGive  } = req.body;
 
   // Проверяем, что ник Telegram присутствует
   if (!telegramNickname || telegramNickname.trim() === '') {
@@ -36,6 +36,7 @@ router.post("/", async (req: Request, res: Response) => {
     currencyGive,
     amountReceive,
     currencyReceive,
+    networkGive,
     telegramNickname: telegramNickname.trim(),
   });
 

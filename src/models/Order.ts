@@ -7,6 +7,7 @@ export interface IOrder extends Document {
   amountReceive: number;
   currencyReceive: string;
   telegramNickname: string;
+  networkGive?: string;  // Новое поле для сети
   createdAt: Date;
 }
 
@@ -17,6 +18,7 @@ const OrderSchema: Schema = new Schema({
   amountReceive: { type: Number, required: true },
   currencyReceive: { type: String, required: true },
   telegramNickname: { type: String, required: true },
+  networkGive: { type: String }, 
   createdAt: { type: Date, default: Date.now },
 });
 
