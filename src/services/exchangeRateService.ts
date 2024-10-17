@@ -1,47 +1,51 @@
 import axios from "axios";
 import ExchangeRate, { IExchangeRate } from "../models/ExchangeRate";
 
-const API_KEY = process.env.API_KEY;
-
-// const symbolMap: { [key: string]: string } = {
-//   Sber: "RUB",
-//   "T-Bank": "RUB",
-
-//   // другие соответствия, если необходимо
-// };
-
 const currencies = [
-  "BTC",
-  "ETH",
-  "USDT",
-  "LTC",
-  "TON",
-  "XMR",
-  "TRX",
-  "DOGE",
-  "USDC",
-  "SOL",
-  "DAI",
-  "ADA",
-  "RUB",
-]; // Список валют, которые хотиm получить
+  "bitcoin",
+  "ethereum",
+  "tether",
+  "litecoin",
+  "the-open-network",
+  "monero",
+  "tron",
+  "dogecoin",
+  "usd-coin",
+  "solana",
+  "dai",
+  "cardano",
+]; // Список валют, которые хотим получить
+
+const currencyMap: { [key: string]: string } = {
+  bitcoin: "BTC",
+  ethereum: "ETH",
+  tether: "USDT",
+  litecoin: "LTC",
+  "the-open-network": "TON",
+  monero: "XMR",
+  tron: "TRX",
+  dogecoin: "DOGE",
+  "usd-coin": "USDC",
+  solana: "SOL",
+  dai: "DAI",
+  cardano: "ADA",
+  rub: "RUB",
+};
 
 export const fetchAndSaveExchangeRates = async () => {
   try {
     const response = await axios.get(
-      "https://min-api.cryptocompare.com/data/pricemulti",
+      "https://api.coingecko.com/api/v3/simple/price",
       {
         params: {
-          fsyms: currencies.join(","),
-          tsyms: "RUB",
-        },
-        headers: {
-          authorization: `Apikey ${API_KEY}`,
+          ids: currencies.join(","),
+          vs_currencies: "rub",
         },
       }
     );
 
     const rawRates = response.data;
+    console.log("Raw rates from CoinGecko:", rawRates); // Добавлено логирование для отладки
     const rates: { [key: string]: number } = {};
 
     // Преобразуем данные в формат, ожидаемый Mongoose
@@ -49,14 +53,20 @@ export const fetchAndSaveExchangeRates = async () => {
       if (
         typeof rateData === "object" &&
         rateData !== null &&
-        "RUB" in rateData
+        "rub" in rateData
       ) {
-        const rubRate = rateData["RUB"];
+        const rubRate = rateData["rub"];
         if (typeof rubRate === "number") {
-          rates[currency] = rubRate;
+          const mappedCurrency = currencyMap[currency];
+          if (mappedCurrency) {
+            rates[mappedCurrency] = rubRate;
+          }
         }
       }
     }
+
+    // Добавляем RUB в список курсов
+    rates["RUB"] = 1;
 
     // Используем findOneAndUpdate для обновления или создания записи
     const updatedExchangeRate = await ExchangeRate.findOneAndUpdate(
