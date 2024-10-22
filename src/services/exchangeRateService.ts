@@ -39,34 +39,41 @@ export const fetchAndSaveExchangeRates = async () => {
       {
         params: {
           ids: currencies.join(","),
-          vs_currencies: "rub",
+          vs_currencies: "rub,usd",
         },
       }
     );
 
     const rawRates = response.data;
     console.log("Raw rates from CoinGecko:", rawRates); // Добавлено логирование для отладки
-    const rates: { [key: string]: number } = {};
+    const rates: { [key: string]: { rub: number; usd: number } } = {};
 
     // Преобразуем данные в формат, ожидаемый Mongoose
     for (const [currency, rateData] of Object.entries(rawRates)) {
       if (
         typeof rateData === "object" &&
         rateData !== null &&
-        "rub" in rateData
+        "rub" in rateData &&
+        "usd" in rateData
       ) {
         const rubRate = rateData["rub"];
-        if (typeof rubRate === "number") {
+        const usdRate = rateData["usd"];
+        if (typeof rubRate === "number" && typeof usdRate === "number") {
           const mappedCurrency = currencyMap[currency];
           if (mappedCurrency) {
-            rates[mappedCurrency] = rubRate;
+            rates[mappedCurrency] = { rub: rubRate, usd: usdRate };
           }
         }
       }
     }
 
-    // Добавляем RUB в список курсов
-    rates["RUB"] = 1;
+    // Добавляем RUB и USD в список курсов
+    if ("tether" in rawRates && "rub" in rawRates["tether"]) {
+      const usdToRubRate = rawRates["tether"]["rub"];
+
+      rates["RUB"] = { rub: 1, usd: parseFloat((1 / usdToRubRate).toFixed(4)) };
+      rates["USD"] = { rub: parseFloat(usdToRubRate.toFixed(2)), usd: 1 };
+    }
 
     // Используем findOneAndUpdate для обновления или создания записи
     const updatedExchangeRate = await ExchangeRate.findOneAndUpdate(
