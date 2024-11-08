@@ -61,32 +61,51 @@ router.post("/", async (req: Request, res: Response) => {
 
   try {
     const ratesData = await getLatestExchangeRates();
+    console.log(ratesData);
 
     if (!ratesData || !ratesData.rates) {
       return res.status(500).json({ message: "Курсы валют не найдены" });
     }
 
-    // Проверка существования ключей в объекте
+    const fromRateData = ratesData.rates[fromCurrency];
+    const toRateData = ratesData.rates[toCurrency];
+
+    // Проверяем, что курсы существуют и содержат данные по RUB
     if (
-      !(fromCurrency in ratesData.rates) ||
-      !(toCurrency in ratesData.rates)
+      !fromRateData ||
+      !toRateData ||
+      typeof fromRateData.rub !== "number" ||
+      typeof toRateData.rub !== "number"
     ) {
-      return res.status(400).json({ message: "Неверные валюты" });
+      console.error(
+        "Ошибка: одна из валют отсутствует в данных курсов или недоступен курс RUB",
+        {
+          fromCurrency,
+          toCurrency,
+        }
+      );
+      return res
+        .status(400)
+        .json({ message: "Неверные валюты или недоступные курсы" });
     }
 
-    // Приведение типа для предотвращения ошибки TypeScript
-    const fromRate = (
-      ratesData.rates[isFromFiat ? "RUB" : fromCurrency] as { rub: number; usd: number }
-    )?.rub;
-    const toRate = (ratesData.rates[isToFiat ? "RUB" : toCurrency] as { rub: number; usd: number })
-      ?.rub;
+    // Получаем только курсы RUB
+    const fromRate = fromRateData.rub;
+    const toRate = toRateData.rub;
 
+    console.log("Курс RUB для", fromCurrency, ":", fromRate);
+    console.log("Курс RUB для", toCurrency, ":", toRate);
+
+    // Проверяем, что курсы являются числами
     if (typeof fromRate !== "number" || typeof toRate !== "number") {
-      return res.status(400).json({ message: "Курсы валют недоступны" });
+      console.error("Ошибка: курсы не являются числами", { fromRate, toRate });
+      return res
+        .status(400)
+        .json({ message: "Неверные валюты или недоступные курсы" });
     }
 
     let rate = 0;
-    
+
     if (isFromFiat) {
       rate = fromRate / toRate;
     } else if (isToFiat) {
