@@ -45,7 +45,7 @@ export const fetchAndSaveExchangeRates = async () => {
     );
 
     const rawRates = response.data;
-    console.log("Raw rates from CoinGecko:", rawRates); // Добавлено логирование для отладки
+    // console.log("Raw rates from CoinGecko:", rawRates); // Добавлено логирование для отладки
     const rates: { [key: string]: { rub: number; usd: number } } = {};
 
     // Преобразуем данные в формат, ожидаемый Mongoose
