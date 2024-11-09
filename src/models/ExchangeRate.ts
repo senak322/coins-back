@@ -1,12 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IExchangeRate extends Document {
-  rates: {
-    [key: string]: {
-      rub: number;
-      usd: number;
-    };
-  };
+  rates: Map<string, { rub: number; usd: number }>;
   timestamp: Date;
 }
 

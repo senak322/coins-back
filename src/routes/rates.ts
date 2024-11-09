@@ -22,96 +22,56 @@ const altCommissionTiers = [
   { min: 100001, max: 10000000, commission: 0.06 }, // 6%
 ];
 
+// Функция для получения комиссии
 function getCommission(currency: string, amount: number): number {
-  let commissionTiers;
-
-  if (currency === "USDT") {
-    commissionTiers = usdtCommissionTiers;
-  } else if (currency === "BTC") {
-    commissionTiers = btcCommissionTiers;
-  } else {
-    commissionTiers = altCommissionTiers;
-  }
-
+  let commissionTiers =
+    currency === "USDT"
+      ? usdtCommissionTiers
+      : currency === "BTC"
+      ? btcCommissionTiers
+      : altCommissionTiers;
   for (const tier of commissionTiers) {
     if (amount >= tier.min && amount < tier.max) {
-      // console.log(`Комиссия для суммы ${amount}: ${tier.commission}`);
       return tier.commission;
     }
   }
-
-  // Если сумма не попадает в диапазон, выбираем ближайшую комиссию
-  if (amount < 5000) {
-    return commissionTiers[0].commission;
-  } else {
-    return commissionTiers[commissionTiers.length - 1].commission;
-  }
+  return amount < 5000
+    ? commissionTiers[0].commission
+    : commissionTiers[commissionTiers.length - 1].commission;
 }
 
 router.post("/", async (req: Request, res: Response) => {
-  const { fromCurrency, toCurrency, amount } = req.body;
+  const { fromCurrency, toCurrency, amount, lastChanged } = req.body; // lastChanged = "give" или "receive"
   const isFromFiat = fromCurrency === "RUB";
   const isToFiat = toCurrency === "RUB";
 
-  if (!fromCurrency || !toCurrency || !amount) {
+  if (!fromCurrency || !toCurrency || !amount || !lastChanged) {
     return res.status(400).json({
-      message: "Необходимы все параметры: fromCurrency, toCurrency, amount",
+      message: "Необходимы все параметры: fromCurrency, toCurrency, amount, lastChanged",
     });
-  }
+  } 
 
   try {
     const ratesData = await getLatestExchangeRates();
-    console.log(ratesData);
-
     if (!ratesData || !ratesData.rates) {
       return res.status(500).json({ message: "Курсы валют не найдены" });
     }
 
-    const fromRateData = ratesData.rates[fromCurrency];
-    const toRateData = ratesData.rates[toCurrency];
+    const fromRateData = ratesData.rates.get(fromCurrency);
+    const toRateData = ratesData.rates.get(toCurrency);
 
     // Проверяем, что курсы существуют и содержат данные по RUB
-    if (
-      !fromRateData ||
-      !toRateData ||
-      typeof fromRateData.rub !== "number" ||
-      typeof toRateData.rub !== "number"
-    ) {
-      console.error(
-        "Ошибка: одна из валют отсутствует в данных курсов или недоступен курс RUB",
-        {
-          fromCurrency,
-          toCurrency,
-        }
-      );
-      return res
-        .status(400)
-        .json({ message: "Неверные валюты или недоступные курсы" });
+    if (!fromRateData || !toRateData) {
+      return res.status(400).json({ message: "Неверные валюты или недоступные курсы" });
     }
 
     // Получаем только курсы RUB
     const fromRate = fromRateData.rub;
     const toRate = toRateData.rub;
 
-    console.log("Курс RUB для", fromCurrency, ":", fromRate);
-    console.log("Курс RUB для", toCurrency, ":", toRate);
-
-    // Проверяем, что курсы являются числами
-    if (typeof fromRate !== "number" || typeof toRate !== "number") {
-      console.error("Ошибка: курсы не являются числами", { fromRate, toRate });
-      return res
-        .status(400)
-        .json({ message: "Неверные валюты или недоступные курсы" });
-    }
-
-    let rate = 0;
-
-    if (isFromFiat) {
-      rate = fromRate / toRate;
-    } else if (isToFiat) {
-      rate = toRate / fromRate;
-    } else {
-      rate = 0;
+    let rate = isFromFiat ? fromRate / toRate : isToFiat ? toRate / fromRate : 0;
+    if (rate === 0) {
+      return res.status(400).json({ message: "Неверные валюты" });
     }
 
     // Получаем комиссию в зависимости от валюты
@@ -122,22 +82,32 @@ router.post("/", async (req: Request, res: Response) => {
     let commission = 0;
     let resultAmount = 0;
 
-    if (isFromFiat) {
-      // Покупка валюты за рубли
-      commission = amount * commissionRateTo;
-      const netAmount = amount - commission;
-      resultAmount = netAmount * rate;
-    } else if (isToFiat) {
-      // Продажа валюты за рубли
-      const grossAmount = amount / rate;
-      commission = grossAmount * commissionRateFrom;
-      const netAmount = grossAmount - commission;
-      resultAmount = netAmount;
+    if (lastChanged === "give") {
+      // Рассчёт по сумме отправки
+      if (isFromFiat) {
+        commission = amount * commissionRateTo;
+        const netAmount = amount - commission;
+        resultAmount = netAmount * rate;
+      } else if (isToFiat) {
+        const grossAmount = amount / rate;
+        commission = grossAmount * commissionRateFrom;
+        resultAmount = grossAmount - commission;
+      }
+    } else if (lastChanged === "receive") {
+      // Рассчёт по сумме получения
+      if (isFromFiat) {
+        const netAmount = amount / rate;
+        commission = netAmount * commissionRateTo / (1 - commissionRateTo);
+        resultAmount = netAmount + commission;
+      } else if (isToFiat) {
+        const netAmount = amount * (1 - commissionRateFrom);
+        resultAmount = netAmount * rate;
+      }
     }
 
     return res.json({
       rate: rate.toFixed(6),
-      commission: commission.toFixed(2),
+      // commission: commission.toFixed(2),
       resultAmount: resultAmount.toFixed(6),
     });
   } catch (error) {
