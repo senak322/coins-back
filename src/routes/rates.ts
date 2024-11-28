@@ -3,6 +3,28 @@ import { getLatestExchangeRates } from "../services/exchangeRateService";
 
 const router = Router();
 
+export interface ICurrency {
+  symbol: string;
+  decimalPlaces: number;
+}
+
+export const currencies: ICurrency[] = [
+  { symbol: "RUB", decimalPlaces: 0 },
+  { symbol: "BTC", decimalPlaces: 8 },
+  { symbol: "ETH", decimalPlaces: 6 },
+  { symbol: "USDT", decimalPlaces: 2 },
+  { symbol: "TON", decimalPlaces: 4 },
+  { symbol: "XMR", decimalPlaces: 4 },
+  { symbol: "TRX", decimalPlaces: 2 },
+  { symbol: "DOGE", decimalPlaces: 2 },
+  { symbol: "USDC", decimalPlaces: 2 },
+  { symbol: "LTC", decimalPlaces: 2 },
+  { symbol: "SOL", decimalPlaces: 4 },
+  { symbol: "DAI", decimalPlaces: 2 },
+  { symbol: "ADA", decimalPlaces: 2 },
+  // Добавьте другие валюты по необходимости
+];
+
 const usdtCommissionTiers = [
   { min: 5000, max: 50000, commission: 0.04 }, // 4%
   { min: 50001, max: 100000, commission: 0.03 }, // 3%
@@ -38,6 +60,11 @@ function getCommission(currency: string, amountInRub: number): number {
   return amountInRub < 5000
     ? commissionTiers[0].commission
     : commissionTiers[commissionTiers.length - 1].commission;
+}
+
+function getDecimalPlaces(currency: string): number {
+  const foundCurrency = currencies.find((c) => c.symbol === currency);
+  return foundCurrency ? foundCurrency.decimalPlaces : 6; // По умолчанию 6 знаков
 }
 
 router.post("/", async (req: Request, res: Response) => {
@@ -77,20 +104,7 @@ router.post("/", async (req: Request, res: Response) => {
       : isToFiat
       ? toRate / fromRate
       : fromRate / toRate;
-      console.log(rate);
-      
-    // const rate = fromRate / toRate;
-    // let rate: number;
-    // if (isFromFiat) {
-    //   // Конвертация из RUB в другую валюту
-    //   rate = 1 / toRate;
-    // } else if (isToFiat) {
-    //   // Конвертация из другой валюты в RUB
-    //   rate = fromRate;
-    // } else {
-    //   // Конвертация между двумя не-RUB валютами
-    //   rate = fromRate / toRate;
-    // }
+    console.log(rate);
 
     if (rate === 0) {
       return res.status(400).json({ message: "Неверные валюты" });
@@ -100,6 +114,7 @@ router.post("/", async (req: Request, res: Response) => {
     let resultAmount = 0;
     let commissionRate = 0;
     let amountInRubForCommission = 0;
+    let resultCurrency: string | undefined;
 
     if (lastChanged === "give") {
       // Рассчёт по сумме отправки
@@ -110,6 +125,7 @@ router.post("/", async (req: Request, res: Response) => {
 
         const netAmount = amount * (1 - commissionRate); // Сумма после вычета комиссии
         resultAmount = netAmount * rate; // Конвертируем в криптовалюту
+        resultCurrency = toCurrency;
       } else if (!isFromFiat && isToFiat) {
         // Продажа криптовалюты за рубли
         const amountInRub = amount * fromRate; // Конвертируем сумму в RUB
@@ -118,6 +134,7 @@ router.post("/", async (req: Request, res: Response) => {
 
         const netAmountInRub = amountInRub * (1 - commissionRate); // Сумма после вычета комиссии
         resultAmount = netAmountInRub; // Сумма в RUB
+        resultCurrency = "RUB";
       } else {
         // Обмен между двумя валютами (не RUB)
         resultAmount = 0;
@@ -132,6 +149,7 @@ router.post("/", async (req: Request, res: Response) => {
 
         const grossAmount = amountInRub / (1 - commissionRate); // Сумма до вычета комиссии
         resultAmount = grossAmount; // Сумма в RUB
+        resultCurrency = "RUB";
       } else if (!isFromFiat && isToFiat) {
         // Продажа криптовалюты за рубли
         amountInRubForCommission = amount; // Сумма в RUB
@@ -139,16 +157,25 @@ router.post("/", async (req: Request, res: Response) => {
 
         const grossAmountInRub = amount / (1 - commissionRate); // Сумма до вычета комиссии
         resultAmount = grossAmountInRub / fromRate; // Конвертируем в криптовалюту
+        resultCurrency = fromCurrency;
       } else {
         // Обмен между двумя валютами (не RUB)
         resultAmount = 0;
       }
     }
 
+    // Форматирование результата
+    let formattedResultAmount: string;
+
+    if (resultCurrency === "RUB") {
+      formattedResultAmount = Math.round(resultAmount).toString(); // Целое число
+    } else {
+      const decimalPlaces = getDecimalPlaces(resultCurrency!);
+      formattedResultAmount = resultAmount.toFixed(decimalPlaces);
+    }
+
     return res.json({
-      // rate: rate.toFixed(6),
-      // commission: commission.toFixed(2),
-      resultAmount: resultAmount.toFixed(6),
+      resultAmount: formattedResultAmount,
     });
   } catch (error) {
     console.error("Ошибка при получении курса:", error);
