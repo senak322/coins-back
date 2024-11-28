@@ -1,29 +1,10 @@
 import { Router, Request, Response } from "express";
 import { getLatestExchangeRates } from "../services/exchangeRateService";
+import { currencies } from "../config/currencies";
+import { formatAmount, getDecimalPlaces } from "../config/utils";
+import { create } from "xmlbuilder2";
 
 const router = Router();
-
-export interface ICurrency {
-  symbol: string;
-  decimalPlaces: number;
-}
-
-export const currencies: ICurrency[] = [
-  { symbol: "RUB", decimalPlaces: 0 },
-  { symbol: "BTC", decimalPlaces: 8 },
-  { symbol: "ETH", decimalPlaces: 6 },
-  { symbol: "USDT", decimalPlaces: 2 },
-  { symbol: "TON", decimalPlaces: 4 },
-  { symbol: "XMR", decimalPlaces: 4 },
-  { symbol: "TRX", decimalPlaces: 2 },
-  { symbol: "DOGE", decimalPlaces: 2 },
-  { symbol: "USDC", decimalPlaces: 2 },
-  { symbol: "LTC", decimalPlaces: 2 },
-  { symbol: "SOL", decimalPlaces: 4 },
-  { symbol: "DAI", decimalPlaces: 2 },
-  { symbol: "ADA", decimalPlaces: 2 },
-  // Добавьте другие валюты по необходимости
-];
 
 const usdtCommissionTiers = [
   { min: 5000, max: 50000, commission: 0.04 }, // 4%
@@ -62,9 +43,26 @@ function getCommission(currency: string, amountInRub: number): number {
     : commissionTiers[commissionTiers.length - 1].commission;
 }
 
-function getDecimalPlaces(currency: string): number {
-  const foundCurrency = currencies.find((c) => c.symbol === currency);
-  return foundCurrency ? foundCurrency.decimalPlaces : 6; // По умолчанию 6 знаков
+// Функция для получения резервов
+async function getReserves(): Promise<{ [currency: string]: number }> {
+  // Реализуйте получение резервов из базы данных или другого источника
+  // Здесь используем статические значения для примера
+  return {
+    BTC: 10,
+    ETH: 500,
+    USDT: 200000,
+    TON: 300000,
+    XMR: 400000,
+    TRX: 2500000,
+    DOGE: 1500000,
+    USDC: 1800000,
+    LTC: 1200000,
+    SOL: 800000,
+    DAI: 2200000,
+    ADA: 1300000,
+    RUB: 10000000, // Пример резерва RUB
+    // Добавьте остальные валюты
+  };
 }
 
 router.post("/", async (req: Request, res: Response) => {
@@ -104,7 +102,7 @@ router.post("/", async (req: Request, res: Response) => {
       : isToFiat
       ? toRate / fromRate
       : fromRate / toRate;
-    console.log(rate);
+    // console.log(rate);
 
     if (rate === 0) {
       return res.status(400).json({ message: "Неверные валюты" });
@@ -182,5 +180,84 @@ router.post("/", async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Ошибка при получении курса" });
   }
 });
+
+// Маршрут для отдачи XML-файла с курсами
+router.get("/rates.xml", async (req: Request, res: Response) => {
+  try {
+    const ratesData = await getLatestExchangeRates();
+    if (!ratesData || !ratesData.rates) {
+      return res.status(500).send("Курсы валют не найдены");
+    }
+
+    const reserves = await getReserves(); // Реализуйте функцию получения резервов
+
+    const items: any[] = [];
+
+    ratesData.rates.forEach((rateData, currency) => {
+      if (currency === "RUB") return;
+
+      const rubRate = rateData.rub;
+      if (!rubRate) return;
+
+      // Пара RUB - Валюта
+      const commissionForToCurrency = getCommission(currency, 1); // Комиссия для обмена 1 RUB на Валюту
+      const netOutForRUBToCurrency = (1 / rubRate) * (1 - commissionForToCurrency);
+      items.push({
+        from: "RUB",
+        to: currency,
+        in: "1",
+        out: formatAmount(netOutForRUBToCurrency, currency),
+        amount: reserves[currency]?.toString() || "0",
+        // minfee: "5 RUB", // По необходимости
+        // fromfee: "2 EUR", // По необходимости
+        // tofee: "2 RUB", // По необходимости
+      });
+
+      // Пара Валюта - RUB
+      const amountInRubForCommission = rubRate * 1; // Сумма в RUB при обмене 1 Валюты на RUB
+      const commissionForFromCurrency = getCommission(currency, amountInRubForCommission);
+      const netOutForCurrencyToRUB = rubRate * (1 - commissionForFromCurrency);
+      items.push({
+        from: currency,
+        to: "RUB",
+        in: "1",
+        out: formatAmount(netOutForCurrencyToRUB, "RUB"),
+        amount: reserves["RUB"]?.toString() || "0",
+        // minfee: "5 RUB", // По необходимости
+        // fromfee: "2 USD", // По необходимости
+        // tofee: "2 RUB", // По необходимости
+      });
+    });
+
+    // Создаём XML-документ
+    const xmlObj = {
+      rates: {
+        item: items.map((item) => {
+          const xmlItem: any = {
+            from: item.from,
+            to: item.to,
+            in: item.in,
+            out: item.out,
+            amount: item.amount,
+          };
+          if (item.minfee) xmlItem.minfee = item.minfee;
+          if (item.fromfee) xmlItem.fromfee = item.fromfee;
+          if (item.tofee) xmlItem.tofee = item.tofee;
+          return xmlItem;
+        }),
+      },
+    };
+
+    const xml = create(xmlObj).end({ prettyPrint: true });
+
+    // Устанавливаем заголовки и отправляем XML
+    res.set("Content-Type", "application/xml");
+    res.send(xml);
+  } catch (error) {
+    console.error("Ошибка при генерации XML:", error);
+    res.status(500).send("Внутренняя ошибка сервера");
+  }
+});
+
 
 export default router;
