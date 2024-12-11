@@ -1,19 +1,32 @@
-import mongoose, { Document, Schema } from 'mongoose';
+// src/models/ExchangeRate.ts
+import mongoose, { Document, Schema } from "mongoose";
+
+export interface IRateData {
+  rub: number;
+  usdt: number;
+}
 
 export interface IExchangeRate extends Document {
-  rates: Map<string, { rub: number; usd: number }>;
+  rates: {
+    [key: string]: IRateData;
+  };
   timestamp: Date;
 }
 
-const exchangeRateSchema = new Schema<IExchangeRate>({
-  rates: {
-    type: Map,
-    of: new Schema({
-      rub: { type: Number, required: true },
-      usd: { type: Number, required: true },
-    }),
+const rateDataSchema = new Schema<IRateData>(
+  {
+    rub: { type: Number, required: true },
+    usdt: { type: Number, required: true },
   },
+  { _id: false }
+);
+
+const exchangeRateSchema = new Schema<IExchangeRate>({
+  // Вместо Map используем просто объект
+  rates: { type: Object, required: true },
   timestamp: { type: Date, required: true },
 });
 
-export default mongoose.model<IExchangeRate>('ExchangeRate', exchangeRateSchema);
+const ExchangeRate = mongoose.model<IExchangeRate>("ExchangeRate", exchangeRateSchema);
+
+export default ExchangeRate;

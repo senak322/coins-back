@@ -8,7 +8,7 @@ import { fetchAndSaveExchangeRates } from './services/exchangeRateService';
 import cron from 'node-cron';
 import cors from 'cors';
 
-dotenv.config({ override: false });
+dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
