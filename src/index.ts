@@ -7,6 +7,7 @@ import rateRoutes from "./routes/rates";
 import { fetchAndSaveExchangeRates } from './services/exchangeRateService';
 import cron from 'node-cron';
 import cors from 'cors';
+import authRoutes from './routes/auth';
 
 dotenv.config();
 
@@ -20,7 +21,7 @@ console.log('MONGODB_URI:', process.env.MONGODB_URI);
 app.use(express.json());
 app.use(cors());
 
-// Маршруты
+app.use('/api/auth', authRoutes);
 app.use('/api/exchange-rate', exchangeRateRoutes);
 app.use('/api/order', orderRoutes);
 app.use('/api/get-rate', rateRoutes);
