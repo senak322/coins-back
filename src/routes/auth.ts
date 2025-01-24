@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { register, login } from '../controllers/authController';
 import { body } from 'express-validator';
+import { verifyToken } from '../services/authService';
 
 const router = Router();
 
@@ -18,5 +19,7 @@ router.post('/login',
   body('password').exists(),
   login
 );
+
+router.get('/verify', verifyToken);
 
 export default router;

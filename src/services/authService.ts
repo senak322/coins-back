@@ -2,7 +2,45 @@ import { User } from '../models/User';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecret'; // Хранить в .env
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+
+export async function verifyToken(req: any, res: any) {
+  try {
+    // 1) Берём заголовок через req.get
+    const authHeader = req.get('Authorization');
+
+    // 2) Проверяем, что заголовок вообще есть
+    if (!authHeader) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    // 3) Выделяем сам токен из строки типа "Bearer <token>"
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'Token not found' });
+    }
+
+    // 4) Проверяем валидность JWT
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+
+    // 5) Дополнительно убеждаемся, что пользователь есть в базе
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    return res.status(200).json({
+      message: 'Token is valid',
+      user: {
+        _id: user._id,
+        login: user.login,
+        email: user.email,
+      },
+    });
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+}
 
 export async function registerUser(login: string, email: string, password: string) {
   // Проверяем, нет ли уже пользователя с таким логином или email

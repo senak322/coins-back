@@ -13,13 +13,6 @@ export interface IExchangeRate extends Document {
   timestamp: Date;
 }
 
-// const rateDataSchema = new Schema<IRateData>(
-//   {
-//     rub: { type: Number, required: true },
-//     usdt: { type: Number, required: true },
-//   },
-//   { _id: false }
-// );
 
 const exchangeRateSchema = new Schema<IExchangeRate>({
   // Вместо Map используем просто объект
