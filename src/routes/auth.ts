@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { register, login } from '../controllers/authController';
 import { body } from 'express-validator';
 import { verifyToken } from '../services/authService';
+import { authMiddleware } from '../middleware/authMiddleware';
+import { updateUser } from '../controllers/authController';
 
 const router = Router();
 
@@ -21,5 +23,7 @@ router.post('/login',
 );
 
 router.get('/verify', verifyToken);
+
+router.patch('/update', authMiddleware, updateUser);
 
 export default router;

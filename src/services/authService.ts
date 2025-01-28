@@ -35,6 +35,10 @@ export async function verifyToken(req: any, res: any) {
         _id: user._id,
         login: user.login,
         email: user.email,
+        last_name: user.last_name,
+        first_name: user.first_name,
+        phone: user.phone,
+        tg: user.tg,
       },
     });
   } catch (err) {
