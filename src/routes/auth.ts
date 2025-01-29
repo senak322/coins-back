@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login } from '../controllers/authController';
+import { register, login, changePassword } from '../controllers/authController';
 import { body } from 'express-validator';
 import { verifyToken } from '../services/authService';
 import { authMiddleware } from '../middleware/authMiddleware';
@@ -25,5 +25,7 @@ router.post('/login',
 router.get('/verify', verifyToken);
 
 router.patch('/update', authMiddleware, updateUser);
+
+router.patch('/change-password', authMiddleware, changePassword);
 
 export default router;

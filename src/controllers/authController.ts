@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { registerUser, loginUser } from '../services/authService';
 import { User } from '../models/User';
+import bcrypt from 'bcrypt';
 
 export async function register(req: Request, res: Response) {
   try {
@@ -69,6 +70,45 @@ export async function updateUser(req: Request, res: Response) {
     });
   } catch (error) {
     console.error(error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+}
+
+export async function changePassword(req: Request, res: Response) {
+  try {
+    // userId берем из authMiddleware (req as any).userId
+    const userId = (req as any).userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'No user ID in request' });
+    }
+
+    // Берём новый пароль из тела запроса
+    const { newPassword } = req.body;
+    if (!newPassword) {
+      return res.status(400).json({ error: 'No new password provided' });
+    }
+
+    // Находим пользователя
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Здесь можно также проверить старый пароль, если нужно
+    // Например, если требуется:
+    // const { oldPassword } = req.body;
+    // if (!await bcrypt.compare(oldPassword, user.password)) {
+    //   return res.status(400).json({ error: 'Old password is incorrect' });
+    // }
+
+    // Хешируем новый пароль и сохраняем
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
+    await user.save();
+
+    return res.status(200).json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('changePassword error:', error);
     return res.status(500).json({ error: 'Server error' });
   }
 }

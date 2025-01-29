@@ -8,8 +8,8 @@ export interface IUser extends Document {
   first_name?: string;
   phone?: string;
   tg?: string;
-  // Можно добавить поле для 2FA, подтверждения почты и т.д.
-  // twoFactorEnabled?: boolean;
+  twoFactorEnabled?: boolean;
+  emailNotifications?: boolean;
 }
 
 const userSchema = new Schema<IUser>({
