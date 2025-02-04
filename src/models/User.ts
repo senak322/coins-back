@@ -8,8 +8,8 @@ export interface IUser extends Document {
   first_name?: string;
   phone?: string;
   tg?: string;
-  twoFactorEnabled?: boolean;
-  emailNotifications?: boolean;
+  is2FAEnabled: boolean;
+  twoFASecret?: string;
 }
 
 const userSchema = new Schema<IUser>({
@@ -20,6 +20,8 @@ const userSchema = new Schema<IUser>({
   first_name: { type: String, required: false },
   phone: { type: String, required: false },
   tg: { type: String, required: false },
+  is2FAEnabled: { type: Boolean, default: false },
+  twoFASecret: { type: String },
 });
 
 export const User = model<IUser>('User', userSchema);
