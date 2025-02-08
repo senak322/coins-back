@@ -4,7 +4,7 @@ import {
   getAccounts,
   createAccount,
   updateAccount,
-  deleteAccount
+  deleteAccount,
 } from "../controllers/accountController";
 
 const router = Router();

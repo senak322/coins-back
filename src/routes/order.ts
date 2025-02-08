@@ -2,15 +2,25 @@ import { Router, Request, Response } from "express";
 import Order from "../models/Order";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmail } from "../services/emailService";
+import { authMiddleware } from "../middleware/authMiddleware";
+import { User } from "../models/User";
 
 const router = Router();
 
 router.post("/", async (req: Request, res: Response) => {
-  const { amountGive, currencyGive, amountReceive, currencyReceive, telegramNickname, networkGive  } = req.body;
+  const {
+    amountGive,
+    currencyGive,
+    amountReceive,
+    currencyReceive,
+    telegramNickname,
+    networkGive,
+    accountId,
+  } = req.body;
 
   // Проверяем, что ник Telegram присутствует
-  if (!telegramNickname || telegramNickname.trim() === '') {
-    return res.status(400).json({ message: 'Ник Telegram обязателен' });
+  if (!telegramNickname || telegramNickname.trim() === "") {
+    return res.status(400).json({ message: "Ник Telegram обязателен" });
   }
 
   if (!amountGive || !currencyGive || !amountReceive || !currencyReceive) {
@@ -30,14 +40,19 @@ router.post("/", async (req: Request, res: Response) => {
     }
   }
 
+  const userId = (req as any).userId; // Получаем userId из authMiddleware
+
   const order = new Order({
     orderId,
+    user: userId,
     amountGive,
     currencyGive,
     amountReceive,
     currencyReceive,
     networkGive,
     telegramNickname: telegramNickname.trim(),
+    accountId, // может быть undefined, если пользователь не выбрал счет
+    status: "new",
   });
 
   try {
@@ -68,6 +83,68 @@ router.get("/latest", async (req, res) => {
     res.json({ orders });
   } catch (error) {
     console.error("Error fetching latest orders:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/my", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).userId;
+    const orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
+    res.json({ orders });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.patch("/:orderId/status", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body; // Ожидаем статус, например, "completed" или "cancelled"
+    // Валидация допустимых значений статуса
+    const validStatuses = ['new', 'in_progress', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const order = await Order.findOne({ orderId });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    order.status = status;
+    await order.save();
+    res.json({ message: "Status updated", order });
+  } catch (error) {
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.patch("/:orderId/status", authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['new', 'in_progress', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    const order = await Order.findOne({ orderId }).populate("user");
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    
+    // Если заявка переводится в статус completed, начисляем бонус рефереру (если он есть)
+    if (status === 'completed' && order.user && (order.user as any).referrer) {
+      const referrerId = (order.user as any).referrer;
+      // Пример бонуса – 0.5% от суммы отправки
+      const bonus = order.amountGive * 0.005;
+      await User.findByIdAndUpdate(referrerId, { $inc: { bonusBalance: bonus } });
+    }
+
+    order.status = status;
+    await order.save();
+    res.json({ message: "Status updated", order });
+  } catch (error) {
     res.status(500).json({ message: "Server error" });
   }
 });

@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import mongoose, { Schema, model, Document } from 'mongoose';
 
 export interface IUser extends Document {
   login: string;
@@ -10,6 +10,9 @@ export interface IUser extends Document {
   tg?: string;
   is2FAEnabled: boolean;
   twoFASecret?: string;
+  referralCode: string;
+  referrer?: mongoose.Types.ObjectId;
+  bonusBalance: number;
 }
 
 const userSchema = new Schema<IUser>({
@@ -22,6 +25,9 @@ const userSchema = new Schema<IUser>({
   tg: { type: String, required: false },
   is2FAEnabled: { type: Boolean, default: false },
   twoFASecret: { type: String },
+  referralCode: { type: String, unique: true, required: true },
+  referrer: { type: Schema.Types.ObjectId, ref: 'User' },
+  bonusBalance: { type: Number, default: 0 },
 });
 
 export const User = model<IUser>('User', userSchema);
