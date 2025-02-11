@@ -38,8 +38,8 @@ export async function login(req: Request, res: Response) {
           first_name: user.first_name,
           phone: user.phone,
           tg: user.tg,
+          twoFA: true,
         },
-        twoFA: true,
         userId: user._id,
       });
     }
@@ -208,6 +208,7 @@ export async function verify2FACode(req: Request, res: Response) {
       secret: user.twoFASecret,
       encoding: "base32",
       token,
+      // window: 2,
     });
 
     if (!verified) return res.status(400).json({ error: "Неверный 2FA код" });

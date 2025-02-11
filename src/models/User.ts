@@ -10,7 +10,7 @@ export interface IUser extends Document {
   tg?: string;
   is2FAEnabled: boolean;
   twoFASecret?: string;
-  referralCode: string;
+  referralCode?: string;
   referrer?: mongoose.Types.ObjectId;
   bonusBalance: number;
 }
@@ -25,7 +25,7 @@ const userSchema = new Schema<IUser>({
   tg: { type: String, required: false },
   is2FAEnabled: { type: Boolean, default: false },
   twoFASecret: { type: String },
-  referralCode: { type: String, unique: true, required: true },
+  referralCode: { type: String, required: false },
   referrer: { type: Schema.Types.ObjectId, ref: 'User' },
   bonusBalance: { type: Number, default: 0 },
 });

@@ -39,7 +39,10 @@ export async function verifyToken(req: any, res: any) {
         first_name: user.first_name,
         phone: user.phone,
         tg: user.tg,
+        twoFA: user.is2FAEnabled,
       },
+      
+      userId: user._id,
     });
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token' });
