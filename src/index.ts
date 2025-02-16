@@ -9,6 +9,7 @@ import cron from 'node-cron';
 import cors from 'cors';
 import authRoutes from './routes/auth';
 import accountRoutes from "./routes/accountRoutes";
+import partnerRoutes from './routes/partnerRoutes';
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use('/api/exchange-rate', exchangeRateRoutes);
 app.use('/api/order', orderRoutes);
 app.use('/api/get-rate', rateRoutes);
 app.use("/api/accounts", accountRoutes);
+app.use("/api/partner", partnerRoutes);
 
 // Запускаем задачу по расписанию каждые 2 минуты
 cron.schedule('*/2 * * * *', () => {

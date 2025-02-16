@@ -10,9 +10,9 @@ const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 export async function register(req: Request, res: Response) {
   try {
-    const { login, email, password } = req.body;
+    const { login, email, password, referralCode } = req.body;
     // Можно добавить валидацию данных
-    const user = await registerUser(login, email, password);
+    const user = await registerUser(login, email, password, referralCode);
     return res
       .status(201)
       .json({ message: "Регистрация успешно завершена", user });

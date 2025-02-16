@@ -49,16 +49,35 @@ export async function verifyToken(req: any, res: any) {
   }
 }
 
-export async function registerUser(login: string, email: string, password: string) {
+export async function registerUser(login: string, email: string, password: string, referralCode?: string) {
   // Проверяем, нет ли уже пользователя с таким логином или email
   const existingUser = await User.findOne({ $or: [{ login }, { email }] });
   if (existingUser) {
     throw new Error('Пользователь с таким логином или email уже существует');
   }
 
+  // Если передан referralCode, ищем реферала
+  let referrer = null;
+  if (referralCode) {
+    referrer = await User.findOne({ shortId: Number(referralCode) });
+  }
+
   const hashedPassword = await bcrypt.hash(password, 10);
+
+  // Формируем объект пользователя без поля referralCode, если оно не задано
+  const newUserData: Partial<typeof User.prototype> = {
+    login,
+    email,
+    password: hashedPassword,
+    referrer: referrer ? referrer._id : undefined,
+  };
+
+  // Если referralCode передан и не пуст, добавляем его
+  if (referralCode && referralCode.trim() !== "") {
+    newUserData.referralCode = referralCode.trim();
+  }
   
-  const user = new User({ login, email, password: hashedPassword });
+  const user = new User(newUserData);
   await user.save();
   return user;
 }

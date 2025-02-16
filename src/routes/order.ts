@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from "uuid";
 import { sendEmail } from "../services/emailService";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { User } from "../models/User";
+import jwt from "jsonwebtoken";
+const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 const router = Router();
 
@@ -40,7 +42,17 @@ router.post("/", async (req: Request, res: Response) => {
     }
   }
 
-  const userId = (req as any).userId; // Получаем userId из authMiddleware
+  let userId = null;
+  if (req.headers.authorization) {
+    const token = req.headers.authorization.split(" ")[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+      userId = decoded.userId;
+    } catch (e) {
+      // Если токен не валиден, продолжаем как неавторизованный пользователь
+      console.error("Invalid token, proceeding without user id");
+    }
+  }
 
   const order = new Order({
     orderId,
@@ -135,10 +147,19 @@ router.patch("/:orderId/status", authMiddleware, async (req: Request, res: Respo
     
     // Если заявка переводится в статус completed, начисляем бонус рефереру (если он есть)
     if (status === 'completed' && order.user && (order.user as any).referrer) {
-      const referrerId = (order.user as any).referrer;
-      // Пример бонуса – 0.1% от суммы отправки
-      const bonus = order.amountGive * 0.001;
-      await User.findByIdAndUpdate(referrerId, { $inc: { bonusBalance: bonus } });
+      let bonus = 0;
+      // Если RUB используется как отправляемая валюта
+      if (order.currencyGive.toUpperCase() === "RUB") {
+        bonus = order.amountGive * 0.001;
+      }
+      // Если RUB используется как получаемая валюта
+      else if (order.currencyReceive.toUpperCase() === "RUB") {
+        bonus = order.amountReceive * 0.001;
+      }
+      if (bonus > 0) {
+        const referrerId = (order.user as any).referrer;
+        await User.findByIdAndUpdate(referrerId, { $inc: { bonusBalance: bonus } });
+      }
     }
 
     order.status = status;
