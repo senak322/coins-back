@@ -136,8 +136,8 @@ router.patch("/:orderId/status", authMiddleware, async (req: Request, res: Respo
     // Если заявка переводится в статус completed, начисляем бонус рефереру (если он есть)
     if (status === 'completed' && order.user && (order.user as any).referrer) {
       const referrerId = (order.user as any).referrer;
-      // Пример бонуса – 0.5% от суммы отправки
-      const bonus = order.amountGive * 0.005;
+      // Пример бонуса – 0.1% от суммы отправки
+      const bonus = order.amountGive * 0.001;
       await User.findByIdAndUpdate(referrerId, { $inc: { bonusBalance: bonus } });
     }
 
