@@ -15,6 +15,7 @@ export interface IUser extends Document {
   referrer?: mongoose.Types.ObjectId;
   bonusBalance: number;
   shortId: number;
+  role_id: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +34,7 @@ const userSchema = new Schema<IUser>({
   referrer: { type: Schema.Types.ObjectId, ref: 'User' },
   bonusBalance: { type: Number, default: 0 },
   shortId: { type: Number, unique: true },
+  role_id: { type: Number, default: 1 },
 },{ timestamps: true } // автоматически добавляет createdAt и updatedAt
 );
 

@@ -10,6 +10,7 @@ import cors from 'cors';
 import authRoutes from './routes/auth';
 import accountRoutes from "./routes/accountRoutes";
 import partnerRoutes from './routes/partnerRoutes';
+import adminOrdersRoutes from "./routes/adminOrdersRoutes";
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use('/api/order', orderRoutes);
 app.use('/api/get-rate', rateRoutes);
 app.use("/api/accounts", accountRoutes);
 app.use("/api/partner", partnerRoutes);
+app.use("/api/admin/orders", adminOrdersRoutes);
 
 // Запускаем задачу по расписанию каждые 2 минуты
 cron.schedule('*/2 * * * *', () => {

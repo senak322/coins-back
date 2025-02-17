@@ -40,6 +40,7 @@ export async function verifyToken(req: any, res: any) {
         phone: user.phone,
         tg: user.tg,
         twoFA: user.is2FAEnabled,
+        role_id: user.role_id,
       },
       
       userId: user._id,

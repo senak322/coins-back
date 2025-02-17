@@ -50,9 +50,9 @@ router.get("/info", authMiddleware, async (req: Request, res: Response) => {
     let earnedAllTime = 0;
     referralOrders.forEach((order) => {
       let rubAmount = 0;
-      if (order.currencyGive.toUpperCase() === "RUB") {
+      if (rubCurrencies.includes(order.currencyGive.toUpperCase())) {
         rubAmount = order.amountGive;
-      } else if (order.currencyReceive.toUpperCase() === "RUB") {
+      } else if (rubCurrencies.includes(order.currencyReceive.toUpperCase())) {
         rubAmount = order.amountReceive;
       }
       totalExchangesSum += rubAmount;

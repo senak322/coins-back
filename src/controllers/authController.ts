@@ -39,6 +39,7 @@ export async function login(req: Request, res: Response) {
           phone: user.phone,
           tg: user.tg,
           twoFA: true,
+          role_id: user.role_id,
         },
         userId: user._id,
       });
