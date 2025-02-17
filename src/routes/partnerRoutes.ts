@@ -6,6 +6,27 @@ import { authMiddleware } from "../middleware/authMiddleware";
 
 const router = Router();
 
+const rubCurrencies = [
+  "RUB",
+  "СБП",
+  "СБЕР",
+  "СБЕРБАНК",
+  "Т-БАНК",
+  "АЛЬФА",
+  "ВТБ",
+  "РАЙФ",
+  "ГАЗПРОМ",
+  "РОСБАНК",
+  "МТС",
+  "ОЗОН",
+  "УРАЛСИБ",
+  "АК БАРС",
+  "РСХБ",
+  "ПРОМСВЯЗЬ",
+  "Ю МАНИ",
+  "PAYEER",
+].map((s) => s.toUpperCase());
+
 // GET /api/partner/info – возвращает статистику партнёрского аккаунта для текущего пользователя
 router.get("/info", authMiddleware, async (req: Request, res: Response) => {
   try {
@@ -97,9 +118,9 @@ router.get("/exchanges", authMiddleware, async (req: Request, res: Response) => 
       // Для каждого заказа вычисляем бонус (0.1% от суммы в рублях)
       const exchanges = orders.map((order) => {
         let rubAmount = 0;
-        if (order.currencyGive.toUpperCase() === "RUB") {
+        if (rubCurrencies.includes(order.currencyGive.toUpperCase())) {
           rubAmount = order.amountGive;
-        } else if (order.currencyReceive.toUpperCase() === "RUB") {
+        } else if (rubCurrencies.includes(order.currencyReceive.toUpperCase())) {
           rubAmount = order.amountReceive;
         }
         const bonus = rubAmount * 0.001; // 0.1%
