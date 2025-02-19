@@ -3,36 +3,44 @@ import { getLatestExchangeRates } from "../services/exchangeRateService";
 import { currencies } from "../config/currencies";
 import { formatAmount, getDecimalPlaces } from "../config/utils";
 import { create } from "xmlbuilder2";
+import { getCommissionConfig } from "../models/CommissionConfig";
 
 const router = Router();
+// const config = await getCommissionConfig();
 
-const usdtCommissionTiers = [
-  { min: 5000, max: 50000, commission: 0.04 },
-  { min: 50001, max: 100000, commission: 0.03 },
-  { min: 100001, max: 10000000, commission: 0.025 },
-];
+// const usdtCommissionTiers = [
+//   { min: 5000, max: 50000, commission: 0.04 },
+//   { min: 50001, max: 100000, commission: 0.03 },
+//   { min: 100001, max: 10000000, commission: 0.025 },
+// ];
 
-// Commission tiers for BTC
-const btcCommissionTiers = [
-  { min: 5000, max: 50000, commission: 0.06 },
-  { min: 50001, max: 100000, commission: 0.05 },
-  { min: 100001, max: 10000000, commission: 0.04 },
-];
+// const usdtCommissionTiers = config.usdt;
+// const btcCommissionTiers = config.btc;
+// const altCommissionTiers = config.alt;
+// // Commission tiers for BTC
+// const btcCommissionTiers = [
+//   { min: 5000, max: 50000, commission: 0.06 },
+//   { min: 50001, max: 100000, commission: 0.05 },
+//   { min: 100001, max: 10000000, commission: 0.04 },
+// ];
 
-// Commission tiers for other altcoins
-const altCommissionTiers = [
-  { min: 5000, max: 100000, commission: 0.05 },
-  { min: 100001, max: 10000000, commission: 0.06 },
-];
+// // Commission tiers for other altcoins
+// const altCommissionTiers = [
+//   { min: 5000, max: 100000, commission: 0.05 },
+//   { min: 100001, max: 10000000, commission: 0.06 },
+// ];
 
 // Функция для получения комиссии
-function getCommission(currency: string, amountInRub: number): number {
-  let commissionTiers =
-    currency === "USDT"
-      ? usdtCommissionTiers
-      : currency === "BTC"
-      ? btcCommissionTiers
-      : altCommissionTiers;
+export async function getCommission(currency: string, amountInRub: number): Promise<number> {
+  const config = await getCommissionConfig();
+  let commissionTiers;
+    if (currency.toUpperCase() === "USDT") {
+      commissionTiers = config.usdt;
+    } else if (currency.toUpperCase() === "BTC") {
+      commissionTiers = config.btc;
+    } else {
+      commissionTiers = config.alt;
+    }
   for (const tier of commissionTiers) {
     if (amountInRub >= tier.min && amountInRub < tier.max) {
       return tier.commission;
@@ -111,7 +119,7 @@ router.post("/", async (req: Request, res: Response) => {
       if (isFromFiat && !isToFiat) {
         // Покупка криптовалюты за рубли
         amountInRubForCommission = amount;
-        commissionRate = getCommission(toCurrency, amountInRubForCommission);
+        commissionRate = await getCommission(toCurrency, amountInRubForCommission);
 
         const netAmount = amount * (1 - commissionRate);
         resultAmount = netAmount * rate;
@@ -120,7 +128,7 @@ router.post("/", async (req: Request, res: Response) => {
         // Продажа криптовалюты за рубли
         const amountInRub = amount * fromRate;
         amountInRubForCommission = amountInRub;
-        commissionRate = getCommission(fromCurrency, amountInRubForCommission);
+        commissionRate = await getCommission(fromCurrency, amountInRubForCommission);
 
         const netAmountInRub = amountInRub * (1 - commissionRate);
         resultAmount = netAmountInRub;
@@ -133,7 +141,7 @@ router.post("/", async (req: Request, res: Response) => {
         // Покупка криптовалюты за рубли
         const amountInRub = amount * toRate;
         amountInRubForCommission = amountInRub;
-        commissionRate = getCommission(toCurrency, amountInRubForCommission);
+        commissionRate = await getCommission(toCurrency, amountInRubForCommission);
 
         const grossAmount = amountInRub / (1 - commissionRate);
         resultAmount = grossAmount;
@@ -141,7 +149,7 @@ router.post("/", async (req: Request, res: Response) => {
       } else if (!isFromFiat && isToFiat) {
         // Продажа криптовалюты за рубли
         amountInRubForCommission = amount;
-        commissionRate = getCommission(fromCurrency, amountInRubForCommission);
+        commissionRate = await getCommission(fromCurrency, amountInRubForCommission);
 
         const grossAmountInRub = amount / (1 - commissionRate);
         resultAmount = grossAmountInRub / fromRate;
@@ -189,7 +197,7 @@ router.get("/rates.xml", async (req: Request, res: Response) => {
       const rubRate = rateData.rub;
       if (!rubRate) continue; // если нет rubRate, пропускаем
 
-      const commissionForToCurrency = getCommission(currency, 1);
+      const commissionForToCurrency = await getCommission(currency, 1);
       const netOutForRUBToCurrency = (1 / rubRate) * (1 - commissionForToCurrency);
 
       items.push({
@@ -201,7 +209,7 @@ router.get("/rates.xml", async (req: Request, res: Response) => {
       });
 
       const amountInRubForCommission = rubRate * 1;
-      const commissionForFromCurrency = getCommission(currency, amountInRubForCommission);
+      const commissionForFromCurrency = await getCommission(currency, amountInRubForCommission);
       const netOutForCurrencyToRUB = rubRate * (1 - commissionForFromCurrency);
 
       items.push({

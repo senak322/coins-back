@@ -11,6 +11,9 @@ import authRoutes from './routes/auth';
 import accountRoutes from "./routes/accountRoutes";
 import partnerRoutes from './routes/partnerRoutes';
 import adminOrdersRoutes from "./routes/adminOrdersRoutes";
+import { getCommissionConfig } from './models/CommissionConfig';
+import adminCommissionRoutes from "./routes/adminCommissionRoutes";
+import withdrawalRoutes from "./routes/withdrawalRoutes";
 
 dotenv.config();
 
@@ -31,6 +34,8 @@ app.use('/api/get-rate', rateRoutes);
 app.use("/api/accounts", accountRoutes);
 app.use("/api/partner", partnerRoutes);
 app.use("/api/admin/orders", adminOrdersRoutes);
+app.use("/api/admin/commissions", adminCommissionRoutes);
+app.use("/api/withdrawals", withdrawalRoutes);
 
 // Запускаем задачу по расписанию каждые 2 минуты
 cron.schedule('*/2 * * * *', () => {
@@ -40,7 +45,7 @@ cron.schedule('*/2 * * * *', () => {
 
 // Начальная загрузка курсов при старте сервера
 fetchAndSaveExchangeRates();
-
+getCommissionConfig();
 // Запуск сервера
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
