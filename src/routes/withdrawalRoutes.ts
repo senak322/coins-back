@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import Withdrawal from "../models/Withdrawal";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { adminMiddleware } from "../middleware/adminMiddleware";
+import { User } from "../models/User";
 
 const router = Router();
 
@@ -10,6 +11,7 @@ const router = Router();
 router.post("/", authMiddleware, async (req: Request, res: Response) => {
   try {
     const { amount, contact } = req.body;
+    const userId = (req as any).userId;
     if (!amount || !contact) {
       return res.status(400).json({ message: "Amount and contact are required" });
     }
@@ -17,7 +19,17 @@ router.post("/", authMiddleware, async (req: Request, res: Response) => {
     if (amountNumber < 1000) {
       return res.status(400).json({ message: "Минимальная сумма вывода - 1000 рублей" });
     }
-    const userId = (req as any).userId;
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if(user.bonusBalance < amountNumber ) {
+      return res.status(400).json({ message: "Cумма вывода превышает доступную" });
+    }
+
+    // Вычитаем сумму вывода из бонусного баланса пользователя
+    user.bonusBalance = user.bonusBalance - amountNumber;
+    await user.save();
     // Генерируем уникальный withdrawalId (например, первая часть UUID)
     const withdrawalId = uuidv4().split("-")[0];
     const withdrawal = new Withdrawal({
@@ -43,6 +55,16 @@ router.get("/my", authMiddleware, async (req: Request, res: Response) => {
     res.json({ withdrawals });
   } catch (error) {
     console.error("Error fetching withdrawals:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/all", authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+  try {
+    const withdrawals = await Withdrawal.find().populate("user").sort({ createdAt: -1 });
+    res.json({ withdrawals });
+  } catch (error) {
+    console.error("Error fetching all withdrawals:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

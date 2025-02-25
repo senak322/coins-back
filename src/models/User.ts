@@ -14,6 +14,7 @@ export interface IUser extends Document {
   referralCode?: string;
   referrer?: mongoose.Types.ObjectId;
   bonusBalance: number;
+  earnedAllTime: number;
   shortId: number;
   role_id: number;
   createdAt: Date;
@@ -33,6 +34,7 @@ const userSchema = new Schema<IUser>({
   referralCode: { type: String, required: false, sparse: true, default: undefined },
   referrer: { type: Schema.Types.ObjectId, ref: 'User' },
   bonusBalance: { type: Number, default: 0 },
+  earnedAllTime: { type: Number, default: 0 },
   shortId: { type: Number, unique: true },
   role_id: { type: Number, default: 1 },
 },{ timestamps: true } // автоматически добавляет createdAt и updatedAt

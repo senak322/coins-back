@@ -3,6 +3,7 @@ import { Router, Request, Response } from "express";
 import { User } from "../models/User";
 import Order from "../models/Order";
 import { authMiddleware } from "../middleware/authMiddleware";
+import Withdrawal from "../models/Withdrawal";
 
 const router = Router();
 
@@ -45,25 +46,13 @@ router.get("/info", authMiddleware, async (req: Request, res: Response) => {
     const referralOrders = await Order.find({ user: { $in: referralIds }, status: "completed" });
     const exchangesCount = referralOrders.length;
 
-    // Вычисляем суммарную сумму обменов (в рублях) и заработанные бонусы (0.1% от суммы)
-    let totalExchangesSum = 0;
-    let earnedAllTime = 0;
-    referralOrders.forEach((order) => {
-      let rubAmount = 0;
-      if (rubCurrencies.includes(order.currencyGive.toUpperCase())) {
-        rubAmount = order.amountGive;
-      } else if (rubCurrencies.includes(order.currencyReceive.toUpperCase())) {
-        rubAmount = order.amountReceive;
-      }
-      totalExchangesSum += rubAmount;
-      earnedAllTime += rubAmount * 0.001;
-    });
+    // Получаем заявки на вывод для подсчёта ожидающих выплат и выплаченных
+    const withdrawals = await Withdrawal.find({ user: userId });
+    const pendingPayout = withdrawals.filter((w) => w.status === "new").reduce((sum, w) => sum + w.amount, 0);
+    const totalPaid = withdrawals.filter((w) => w.status === "completed").reduce((sum, w) => sum + w.amount, 0);
 
-    // Пока не реализованы выплаты – считаем их равными нулю
-    const pendingPayout = 0;
-    const totalPaid = 0;
     const currentBalance = user.bonusBalance || 0;
-    const availableForPayout = currentBalance; // если нет отчислений
+    const availableForPayout = currentBalance - pendingPayout;
 
     // partnerPercent – можно считать, что бонус начисляется по ставке 0.1%
     const partnerPercent = 0.1;
@@ -74,11 +63,9 @@ router.get("/info", authMiddleware, async (req: Request, res: Response) => {
       email: user.email,
       partnerPercent,
       referralCount,
-      visitors: 0, // аналитика по посетителям пока не реализована
       exchangesCount,
-      totalExchangesSum,
-      ctrValue: "—",
-      earnedAllTime,
+      totalExchangesSum: referralOrders.reduce((sum, order) => sum + (order.currencyGive === "RUB" ? order.amountGive : order.amountReceive), 0),
+      earnedAllTime: user.earnedAllTime,  // Это ваш бонус
       pendingPayout,
       totalPaid,
       currentBalance,

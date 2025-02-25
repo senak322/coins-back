@@ -5,9 +5,31 @@ import { sendEmail } from "../services/emailService";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { User } from "../models/User";
 import jwt from "jsonwebtoken";
+import { adminMiddleware } from "../middleware/adminMiddleware";
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
 const router = Router();
+
+const rubCurrencies = [
+  "RUB",
+  "СБП",
+  "СБЕР",
+  "СБЕРБАНК",
+  "Т-БАНК",
+  "АЛЬФА",
+  "ВТБ",
+  "РАЙФ",
+  "ГАЗПРОМ",
+  "РОСБАНК",
+  "МТС",
+  "ОЗОН",
+  "УРАЛСИБ",
+  "АК БАРС",
+  "РСХБ",
+  "ПРОМСВЯЗЬ",
+  "Ю МАНИ",
+  "PAYEER",
+].map((s) => s.toUpperCase());
 
 router.post("/", async (req: Request, res: Response) => {
   const {
@@ -109,29 +131,29 @@ router.get("/my", authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/:orderId/status", authMiddleware, async (req: Request, res: Response) => {
-  try {
-    const { orderId } = req.params;
-    const { status } = req.body; // Ожидаем статус, например, "completed" или "cancelled"
-    // Валидация допустимых значений статуса
-    const validStatuses = ['new', 'in_progress', 'completed', 'cancelled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
-    }
+// router.patch("/:orderId/status", authMiddleware, async (req: Request, res: Response) => {
+//   try {
+//     const { orderId } = req.params;
+//     const { status } = req.body; // Ожидаем статус, например, "completed" или "cancelled"
+//     // Валидация допустимых значений статуса
+//     const validStatuses = ['new', 'in_progress', 'completed', 'cancelled'];
+//     if (!validStatuses.includes(status)) {
+//       return res.status(400).json({ message: "Invalid status value" });
+//     }
 
-    const order = await Order.findOne({ orderId });
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-    order.status = status;
-    await order.save();
-    res.json({ message: "Status updated", order });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
-  }
-});
+//     const order = await Order.findOne({ orderId });
+//     if (!order) {
+//       return res.status(404).json({ message: "Order not found" });
+//     }
+//     order.status = status;
+//     await order.save();
+//     res.json({ message: "Status updated", order });
+//   } catch (error) {
+//     res.status(500).json({ message: "Server error" });
+//   }
+// });
 
-router.patch("/:orderId/status", authMiddleware, async (req: Request, res: Response) => {
+router.patch("/:orderId/status", authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;
     const { status } = req.body;
@@ -149,16 +171,18 @@ router.patch("/:orderId/status", authMiddleware, async (req: Request, res: Respo
     if (status === 'completed' && order.user && (order.user as any).referrer) {
       let bonus = 0;
       // Если RUB используется как отправляемая валюта
-      if (order.currencyGive.toUpperCase() === "RUB") {
+      if (rubCurrencies.includes(order.currencyGive.toUpperCase())) {
         bonus = order.amountGive * 0.001;
       }
       // Если RUB используется как получаемая валюта
-      else if (order.currencyReceive.toUpperCase() === "RUB") {
+      else if (rubCurrencies.includes(order.currencyReceive.toUpperCase())) {
         bonus = order.amountReceive * 0.001;
       }
       if (bonus > 0) {
         const referrerId = (order.user as any).referrer;
-        await User.findByIdAndUpdate(referrerId, { $inc: { bonusBalance: bonus } });
+        await User.findByIdAndUpdate(referrerId, { $inc: { bonusBalance: bonus, earnedAllTime: bonus } });
+      }else {
+        console.log(`Bonus is zero. currencyGive: ${order.currencyGive}, currencyReceive: ${order.currencyReceive}`);
       }
     }
 
