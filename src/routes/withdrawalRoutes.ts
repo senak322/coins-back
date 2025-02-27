@@ -4,6 +4,7 @@ import Withdrawal from "../models/Withdrawal";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { adminMiddleware } from "../middleware/adminMiddleware";
 import { User } from "../models/User";
+import { sendEmail } from "../services/emailService";
 
 const router = Router();
 
@@ -40,6 +41,15 @@ router.post("/", authMiddleware, async (req: Request, res: Response) => {
       status: "new",
     });
     await withdrawal.save();
+    if (user.emailNotificationsEnabled) {
+      await sendEmail({
+        toUser: user.email,
+        subject: "Заявка на вывод средств создана",
+        html: `<p>Здравствуйте, ${user.login}!</p>
+               <p>Ваша заявка на вывод средств на сумму ${amountNumber} рублей создана и находится в статусе "новая".</p>
+               <p>Мы уведомим вас при изменении статуса заявки.</p>`,
+      });
+    }
     res.json({ message: "Withdrawal request created", withdrawalId });
   } catch (error) {
     console.error("Error creating withdrawal:", error);
@@ -84,6 +94,17 @@ router.patch("/:withdrawalId/status", authMiddleware, adminMiddleware, async (re
     }
     withdrawal.status = status;
     await withdrawal.save();
+    const user = await User.findById(withdrawal.user);
+    const amountNumber = Number(withdrawal.amount);
+    if (user && user.emailNotificationsEnabled) {
+      await sendEmail({
+        toUser: user.email,
+        subject: "Заявка на вывод средств",
+        html: `<p>Здравствуйте, ${user.login}!</p>
+               <p>Ваша заявка на вывод средств на сумму ${amountNumber} рублей обработана и теперь находится в статусе "${status}".</p>
+               <p>Спасибо, что Вы с нами!.</p>`,
+      });
+    }
     res.json({ message: "Withdrawal status updated", withdrawal });
   } catch (error) {
     console.error("Error updating withdrawal status:", error);

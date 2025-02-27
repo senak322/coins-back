@@ -17,6 +17,7 @@ export interface IUser extends Document {
   earnedAllTime: number;
   shortId: number;
   role_id: number;
+  emailNotificationsEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +38,7 @@ const userSchema = new Schema<IUser>({
   earnedAllTime: { type: Number, default: 0 },
   shortId: { type: Number, unique: true },
   role_id: { type: Number, default: 1 },
+  emailNotificationsEnabled: { type: Boolean, default: false },
 },{ timestamps: true } // автоматически добавляет createdAt и updatedAt
 );
 

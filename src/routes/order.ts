@@ -100,11 +100,27 @@ router.post("/", async (req: Request, res: Response) => {
     <p><strong>Номер заявки:</strong> ${order.orderId}</p>
     <p><strong>Ник в Telegram:</strong> ${telegramNickname.trim()}</p>
     <p><strong>К отправке:</strong> ${amountGive} ${currencyGive}</p>
-    <p><strong>К получениюо:</strong> ${amountReceive} ${currencyReceive}</p>
+    <p><strong>К получению:</strong> ${amountReceive} ${currencyReceive}</p>
     <p><strong>Дата:</strong> ${new Date().toLocaleString()}</p>
   `,
     });
-
+    const user = await User.findById(userId);
+    if (user && user.emailNotificationsEnabled) {
+      await sendEmail({
+        toUser: user.email,
+        subject: "Новая заявка",
+        html: `<p>Здравствуйте, ${user.login}!</p>
+        <h1>Новая заявка создана</h1>
+        <p><strong>Номер заявки:</strong> ${order.orderId}</p>
+        <p><strong>Ник в Telegram:</strong> ${telegramNickname.trim()}</p>
+        <p><strong>К отправке:</strong> ${amountGive} ${currencyGive}</p>
+        <p><strong>К получению:</strong> ${amountReceive} ${currencyReceive}</p>
+        <p><strong>Дата:</strong> ${new Date().toLocaleString()}</p>
+        <p><strong>Отследить статус заявки можно в личном кабинете.</strong></p>
+        <p><strong>Что-бы связаться с оператором для совершения обмена напишите в Telegram: @Coins_Change</strong></p>
+      `,
+      });
+    }
     res.json({ message: "Order created", orderId });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
@@ -153,45 +169,58 @@ router.get("/my", authMiddleware, async (req: Request, res: Response) => {
 //   }
 // });
 
-router.patch("/:orderId/status", authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
-  try {
-    const { orderId } = req.params;
-    const { status } = req.body;
-    const validStatuses = ['new', 'in_progress', 'completed', 'cancelled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ message: "Invalid status value" });
-    }
+router.patch(
+  "/:orderId/status",
+  authMiddleware,
+  adminMiddleware,
+  async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const { status } = req.body;
+      const validStatuses = ["new", "in_progress", "completed", "cancelled"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "Invalid status value" });
+      }
 
-    const order = await Order.findOne({ orderId }).populate("user");
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-    
-    // Если заявка переводится в статус completed, начисляем бонус рефереру (если он есть)
-    if (status === 'completed' && order.user && (order.user as any).referrer) {
-      let bonus = 0;
-      // Если RUB используется как отправляемая валюта
-      if (rubCurrencies.includes(order.currencyGive.toUpperCase())) {
-        bonus = order.amountGive * 0.001;
+      const order = await Order.findOne({ orderId }).populate("user");
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
       }
-      // Если RUB используется как получаемая валюта
-      else if (rubCurrencies.includes(order.currencyReceive.toUpperCase())) {
-        bonus = order.amountReceive * 0.001;
-      }
-      if (bonus > 0) {
-        const referrerId = (order.user as any).referrer;
-        await User.findByIdAndUpdate(referrerId, { $inc: { bonusBalance: bonus, earnedAllTime: bonus } });
-      }else {
-        console.log(`Bonus is zero. currencyGive: ${order.currencyGive}, currencyReceive: ${order.currencyReceive}`);
-      }
-    }
 
-    order.status = status;
-    await order.save();
-    res.json({ message: "Status updated", order });
-  } catch (error) {
-    res.status(500).json({ message: "Server error" });
+      // Если заявка переводится в статус completed, начисляем бонус рефереру (если он есть)
+      if (
+        status === "completed" &&
+        order.user &&
+        (order.user as any).referrer
+      ) {
+        let bonus = 0;
+        // Если RUB используется как отправляемая валюта
+        if (rubCurrencies.includes(order.currencyGive.toUpperCase())) {
+          bonus = order.amountGive * 0.001;
+        }
+        // Если RUB используется как получаемая валюта
+        else if (rubCurrencies.includes(order.currencyReceive.toUpperCase())) {
+          bonus = order.amountReceive * 0.001;
+        }
+        if (bonus > 0) {
+          const referrerId = (order.user as any).referrer;
+          await User.findByIdAndUpdate(referrerId, {
+            $inc: { bonusBalance: bonus, earnedAllTime: bonus },
+          });
+        } else {
+          console.log(
+            `Bonus is zero. currencyGive: ${order.currencyGive}, currencyReceive: ${order.currencyReceive}`
+          );
+        }
+      }
+
+      order.status = status;
+      await order.save();
+      res.json({ message: "Status updated", order });
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
+    }
   }
-});
+);
 
 export default router;

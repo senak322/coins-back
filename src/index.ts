@@ -14,6 +14,7 @@ import adminOrdersRoutes from "./routes/adminOrdersRoutes";
 import { getCommissionConfig } from './models/CommissionConfig';
 import adminCommissionRoutes from "./routes/adminCommissionRoutes";
 import withdrawalRoutes from "./routes/withdrawalRoutes";
+import userRoutes from "./routes/userRoutes";
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.use("/api/partner", partnerRoutes);
 app.use("/api/admin/orders", adminOrdersRoutes);
 app.use("/api/admin/commissions", adminCommissionRoutes);
 app.use("/api/withdrawals", withdrawalRoutes);
+app.use("/api/users", userRoutes);
 
 // Запускаем задачу по расписанию каждые 2 минуты
 cron.schedule('*/2 * * * *', () => {

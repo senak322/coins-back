@@ -18,17 +18,16 @@ interface MailOptions {
   subject: string;
   text?: string;
   html?: string;
+  toUser?: string;
 }
 
 // Функция для отправки письма
 export const sendEmail = async (options: MailOptions) => {
-//   console.log("YANDEX_EMAIL:", process.env.YANDEX_EMAIL);
-//   console.log("YANDEX_PASSWORD:", process.env.YANDEX_PASSWORD);
-  console.log("ADMIN_EMAIL:", process.env.ADMIN_EMAIL);
+
   try {
     const mailOptions = {
       from: `"Coins Change" <${process.env.YANDEX_EMAIL}>`, // От кого
-      to: process.env.ADMIN_EMAIL, // Кому (email администратора)
+      to: options.toUser ? options.toUser : process.env.ADMIN_EMAIL, // Кому 
       subject: options.subject,
       text: options.text,
       html: options.html,
