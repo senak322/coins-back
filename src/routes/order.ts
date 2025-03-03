@@ -31,6 +31,33 @@ const rubCurrencies = [
   "PAYEER",
 ].map((s) => s.toUpperCase());
 
+const verifyCaptcha = async (captchaToken: string) => {
+  const secretKey = process.env.REACT_APP_CAPTCHA_SITEKEY;
+  if (!secretKey) {
+    throw new Error("Secret key is not set");
+  }
+  const params = new URLSearchParams({
+    secret: secretKey,
+    token: captchaToken,
+  });
+  const url = `https://smartcaptcha.yandexcloud.net/validate?${params.toString()}`;
+  const response = await fetch(url, {
+    method: "GET",
+  });
+  const text = await response.text();
+  if (!text) {
+    throw new Error("Empty response from captcha verification");
+  }
+  try {
+    const data = JSON.parse(text);
+    // Проверяем свойство status вместо success
+    return data.status === "ok";
+  } catch (err) {
+    console.error("Error parsing captcha verification response:", err);
+    throw err;
+  }
+};
+
 router.post("/", async (req: Request, res: Response) => {
   const {
     amountGive,
@@ -40,7 +67,19 @@ router.post("/", async (req: Request, res: Response) => {
     telegramNickname,
     networkGive,
     accountId,
+    captchaToken,
   } = req.body;
+  try {
+    const isVerif = await verifyCaptcha(captchaToken)
+    if (!isVerif) {
+      return res.status(400).json({ message: "Капча не прошла проверку" });
+    }
+  } catch (err) {
+    console.log(err)
+    return res.status(400).json({ message: "Капча обязательна" });
+  }
+  
+
 
   // Проверяем, что ник Telegram присутствует
   if (!telegramNickname || telegramNickname.trim() === "") {
@@ -222,5 +261,7 @@ router.patch(
     }
   }
 );
+
+
 
 export default router;
