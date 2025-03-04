@@ -41,6 +41,7 @@ export async function verifyToken(req: any, res: any) {
         tg: user.tg,
         twoFA: user.is2FAEnabled,
         role_id: user.role_id,
+        emailNotificationsEnabled: user.emailNotificationsEnabled,
       },
       
       userId: user._id,
