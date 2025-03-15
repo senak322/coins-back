@@ -1,5 +1,5 @@
-import mongoose, { Schema, model, Document } from 'mongoose';
-import { Counter } from './Counter';
+import mongoose, { Schema, model, Document } from "mongoose";
+import { Counter } from "./Counter";
 
 export interface IUser extends Document {
   login: string;
@@ -18,42 +18,58 @@ export interface IUser extends Document {
   shortId: number;
   role_id: number;
   emailNotificationsEnabled: boolean;
+  isEmailVerified: boolean;
+  emailVerificationCode?: string;
+  emailVerificationExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const userSchema = new Schema<IUser>({
-  login: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  last_name: { type: String, required: false },
-  first_name: { type: String, required: false },
-  phone: { type: String, required: false },
-  tg: { type: String, required: false },
-  is2FAEnabled: { type: Boolean, default: false },
-  twoFASecret: { type: String },
-  referralCode: { type: String, required: false, sparse: true, default: undefined },
-  referrer: { type: Schema.Types.ObjectId, ref: 'User' },
-  bonusBalance: { type: Number, default: 0 },
-  earnedAllTime: { type: Number, default: 0 },
-  shortId: { type: Number, unique: true },
-  role_id: { type: Number, default: 1 },
-  emailNotificationsEnabled: { type: Boolean, default: false },
-},{ timestamps: true } // автоматически добавляет createdAt и updatedAt
+const userSchema = new Schema<IUser>(
+  {
+    login: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    last_name: { type: String, required: false },
+    first_name: { type: String, required: false },
+    phone: { type: String, required: false },
+    tg: { type: String, required: false },
+    is2FAEnabled: { type: Boolean, default: false },
+    twoFASecret: { type: String },
+    referralCode: {
+      type: String,
+      required: false,
+      sparse: true,
+      default: undefined,
+    },
+    referrer: { type: Schema.Types.ObjectId, ref: "User" },
+    bonusBalance: { type: Number, default: 0 },
+    earnedAllTime: { type: Number, default: 0 },
+    shortId: { type: Number, unique: true },
+    role_id: { type: Number, default: 1 },
+    emailNotificationsEnabled: { type: Boolean, default: false },
+    isEmailVerified: { type: Boolean, default: false },
+    emailVerificationCode: { type: String },
+    emailVerificationExpires: { type: Date },
+  },
+  { timestamps: true } // автоматически добавляет createdAt и updatedAt
 );
 
 // Создаем частичный индекс для referralCode,
 // чтобы уникальность проверялась только если referralCode существует и не равен null.
 userSchema.index(
   { referralCode: 1 },
-  { unique: true, partialFilterExpression: { referralCode: { $exists: true, $ne: null } } }
+  {
+    unique: true,
+    partialFilterExpression: { referralCode: { $exists: true, $ne: null } },
+  }
 );
 
-userSchema.pre<IUser>('save', async function (next) {
+userSchema.pre<IUser>("save", async function (next) {
   if (this.isNew && this.shortId == null) {
     try {
       const counter = await Counter.findByIdAndUpdate(
-        { _id: 'userId' },
+        { _id: "userId" },
         { $inc: { seq: 1 } },
         { new: true, upsert: true }
       );
@@ -67,4 +83,4 @@ userSchema.pre<IUser>('save', async function (next) {
   }
 });
 
-export const User = model<IUser>('User', userSchema);
+export const User = model<IUser>("User", userSchema);

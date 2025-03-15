@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, changePassword, generate2FASecret, enable2FA, disable2FA, verify2FACode } from '../controllers/authController';
+import { register, verifyEmail, login, changePassword, generate2FASecret, enable2FA, disable2FA, verify2FACode } from '../controllers/authController';
 import { body } from 'express-validator';
 import { verifyToken } from '../services/authService';
 import { authMiddleware } from '../middleware/authMiddleware';
@@ -15,6 +15,8 @@ router.post('/register',
   // Здесь можно добавить middleware для обработки ошибок валидации
   register
 );
+
+router.post("/verify-email", verifyEmail);
 
 router.post('/login', 
   body('loginOrEmail').exists(),

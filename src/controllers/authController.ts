@@ -5,6 +5,8 @@ import bcrypt from "bcrypt";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import jwt from "jsonwebtoken";
+import crypto from 'crypto';
+import { sendEmail } from "../services/emailService";
 
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
@@ -13,11 +15,59 @@ export async function register(req: Request, res: Response) {
     const { login, email, password, referralCode } = req.body;
     // Можно добавить валидацию данных
     const user = await registerUser(login, email, password, referralCode);
-    return res
-      .status(201)
-      .json({ message: "Регистрация успешно завершена", user });
+    const verificationCode = crypto.randomBytes(3).toString('hex');
+    user.emailVerificationCode = verificationCode;
+    // Устанавливаем срок действия кода (например, 1 час)
+    user.emailVerificationExpires = new Date(Date.now() + 3600000);
+    await user.save();
+    
+    // Отправляем e-mail с кодом подтверждения
+    await sendEmail({
+      toUser: user.email,
+      subject: "Подтверждение e-mail",
+      html: `<p>Здравствуйте, ${user.login}!</p>
+             <p>Для завершения регистрации введите следующий код подтверждения:</p>
+             <h2>${verificationCode}</h2>
+             <p>Код действителен в течение 1 часа.</p>`
+    });
+    
+    return res.status(201).json({ message: "Регистрация почти завершена. Для завершения на ваш e-mail отправлен код подтверждения.", user });
   } catch (err: any) {
     return res.status(400).json({ error: err.message });
+  }
+}
+
+export async function verifyEmail(req: Request, res: Response) {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return res.status(400).json({ error: "Email и код обязательны" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: "Пользователь не найден" });
+    }
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({ error: "E-mail уже подтвержден" });
+    }
+
+    // Проверяем код и срок действия
+    if (user.emailVerificationCode !== code || (user.emailVerificationExpires && user.emailVerificationExpires < new Date())) {
+      return res.status(400).json({ error: "Неверный или просроченный код подтверждения" });
+    }
+
+    // Обновляем пользователя: подтверждаем e-mail
+    user.isEmailVerified = true;
+    user.emailVerificationCode = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    return res.json({ message: "E-mail успешно подтвержден" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Ошибка сервера" });
   }
 }
 
